@@ -2,6 +2,7 @@ const express = require("express");
 const app = express.Router();
 const Subdivision = require("../models/subdivision");
 
+//Get all the sub division
 app.get("/findall", (req, res) => {
   Subdivision.find({})
     .then((office) => {
@@ -12,6 +13,7 @@ app.get("/findall", (req, res) => {
     });
 });
 
+//Create a new sub division
 app.post("/add", (req, res) => {
   const { name } = req.body;
 

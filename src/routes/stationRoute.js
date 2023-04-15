@@ -1,6 +1,5 @@
 const express = require("express");
 const app = express.Router();
-const mongoose = require("mongoose");
 const Station = require("../models/station");
 const Subdivision = require("../models/subdivision");
 
