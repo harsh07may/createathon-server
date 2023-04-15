@@ -2,6 +2,9 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const app = express.Router();
 const User = require("../models/users");
+const authMiddleware = require("../middleware/authMiddleware");
+const { createAccessToken, createRefreshToken } = require("../utils/token");
+const jwt = require("jsonwebtoken");
 
 /**
  * @swagger
@@ -24,8 +27,7 @@ const User = require("../models/users");
  *           type: string
  *           description: The user's role
  *           enum:
- *             - admin
- *             - user
+ *             [admin,user]
  *       example:
  *         name: John Doe
  *         password: 123456
@@ -59,32 +61,6 @@ app.get("/findall", (req, res) => {
       res.status(400).send(err);
     });
 });
-
-// app.post("/register",  (req, res) => {
-//   const { name, password, role } = req.body;
-//   User.findOne({ name })
-//     .then((existingUser) => {
-//       if (existingUser) {
-//         res.status(409).json({ message: "User already exists" });
-//       } else {
-//         const hashedPwd = await bcrypt.hash(req.body.password, saltRounds);
-//         const user = new User({ name, password, role });
-//         user
-//           .save()
-//           .then(() => {
-//             res.status(201).send("User created successfully");
-//           })
-//           .catch((error) => {
-//             console.error(error);
-//             res.status(500).send("Error creating user");
-//           });
-//       }
-//     })
-//     .catch((error) => {
-//       console.error(error);
-//       res.status(500).send("Error creating user");
-//     });
-// });
 /**
  * @swagger
  * /user/register:
@@ -135,19 +111,34 @@ app.post("/login", async (req, res) => {
   try {
     const { name, password, role } = req.body;
     const user = await User.findOne({ name });
-    console.log(user);
     if (!user) {
       return res.status(404).send("User not Found");
     }
-    const valid = await compare(password, user.rows[0].password);
+
+    const valid = await bcrypt.compare(password, user.password);
     if (!valid) {
       return res.status(400).send("Username or Password is incorrect");
     }
-    console.log(user);
-    res.send("Successfully Logged In");
+
+    const accessToken = createAccessToken(user._id, user.name, user.role);
+    const refreshToken = createRefreshToken(user._id, user.name, user.role);
+
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      path: "/user/refresh_token",
+      sameSite: "none",
+    });
+    res.send({ accessToken });
   } catch (error) {
     res.status(500).send(error);
   }
+});
+
+app.post("/logout", (req, res) => {
+  res.clearCookie("refreshToken", { path: "/user/refresh_token" });
+  return res.send({
+    message: "Logged Out",
+  });
 });
 
 app.post("/update", async (req, res) => {
